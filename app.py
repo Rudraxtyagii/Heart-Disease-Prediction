@@ -454,9 +454,20 @@ def serve_dashboard():
 
 
 if __name__ == "__main__":
+    import socket
+    port = 8000
+    for arg in sys.argv:
+        if arg.startswith("--port="):
+            port = int(arg.split("=")[1])
+    
+    # Check if port is in use; auto-fallback to 8050
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if s.connect_ex(("127.0.0.1", port)) == 0:
+            port = 8050
+
     print("=" * 65)
     print("  Starting Heart Disease Prediction Web Service")
-    print("  URL: http://127.0.0.1:8000")
-    print("  API Docs: http://127.0.0.1:8000/docs")
+    print(f"  URL: http://127.0.0.1:{port}")
+    print(f"  API Docs: http://127.0.0.1:{port}/docs")
     print("=" * 65)
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("app:app", host="127.0.0.1", port=port, reload=False)
