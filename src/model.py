@@ -49,7 +49,13 @@ class HeartDiseaseModelPipeline:
             raise ValueError("Dataset missing 'target' column.")
             
         X = df[FEATURE_NAMES]
-        y = df["target"]
+        # In the raw Cleveland CSV, target=0 denotes high-risk/disease cases (high oldpeak, angina, blocked vessels),
+        # whereas target=1 denotes asymptomatic/healthy subjects.
+        # Standardize to clinical convention: 1 = Heart Disease Present, 0 = Healthy / No Disease.
+        if df["oldpeak"].corr(df["target"]) < 0:
+            y = 1 - df["target"]
+        else:
+            y = df["target"]
         return X, y
 
     def benchmark_models(self, X_train: pd.DataFrame, X_test: pd.DataFrame, 
