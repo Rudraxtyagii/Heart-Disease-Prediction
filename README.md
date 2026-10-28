@@ -1,121 +1,182 @@
-# Heart Disease Prediction System using Machine Learning
+# CardioPredict: Explainable Machine Learning Decision-Support System for Heart Disease
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![CI Pipeline](https://github.com/Rudraxtyagii/Heart-Disease-Prediction/actions/workflows/ci.yml/badge.svg)](https://github.com/Rudraxtyagii/Heart-Disease-Prediction/actions)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Scikit-Learn](https://img.shields.io/badge/scikit--learn-v1.3%2B-orange.svg?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![SHAP](https://img.shields.io/badge/Explainable%20AI-SHAP%20v0.54-green.svg)](https://shap.readthedocs.io/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](#)
 
-> **An end-to-end clinical decision support system utilizing supervised machine learning to predict coronary heart disease risk from non-invasive cardiovascular indicators.**
+> **CardioPredict** is a production-grade clinical decision-support prototype utilizing supervised machine learning and game-theoretic **SHAP (SHapley Additive exPlanations)** to predict coronary heart disease risk from non-invasive physiological indicators.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Overview & Clinical Motivation](#overview--clinical-motivation)
 - [Key Features](#key-features)
-- [Dataset & Clinical Indicators](#dataset--clinical-indicators)
-- [Machine Learning Architecture](#machine-learning-architecture)
-- [Model Performance Benchmark](#model-performance-benchmark)
+- [System Architecture](#system-architecture)
+- [Dataset & Deduplication Audit](#dataset--deduplication-audit)
+- [Clinical Feature Dictionary](#clinical-feature-dictionary)
+- [Model Evaluation & Benchmarking](#model-evaluation--benchmarking)
+- [Probability Calibration](#probability-calibration)
+- [Explainable AI (SHAP) Methodology](#explainable-ai-shap-methodology)
 - [Project Structure](#project-structure)
 - [Installation & Quickstart](#installation--quickstart)
 - [Usage Guide](#usage-guide)
-  - [1. Interactive CLI Wizard](#1-interactive-cli-wizard)
-  - [2. Command-Line Inference](#2-command-line-inference)
-  - [3. Web Dashboard (FastAPI)](#3-web-dashboard-fastapi)
-  - [4. Model Retraining Pipeline](#4-model-retraining-pipeline)
-  - [5. Automated Unit Tests](#5-automated-unit-tests)
-- [Clinical Risk Heuristics](#clinical-risk-heuristics)
-- [Contributing](#contributing)
+  - [1. Web Dashboard](#1-web-dashboard)
+  - [2. Interactive CLI](#2-interactive-cli)
+  - [3. CLI Demonstration Mode](#3-cli-demonstration-mode)
+  - [4. Model Retraining](#4-model-retraining)
+  - [5. Automated Test Suite](#5-automated-test-suite)
+- [REST API Reference & Examples](#rest-api-reference--examples)
+- [PDF Assessment Report Generation](#pdf-assessment-report-generation)
+- [Limitations & Ethical Medical Disclaimer](#limitations--ethical-medical-disclaimer)
 - [Author & License](#author--license)
 
 ---
 
-## Overview
+## Overview & Clinical Motivation
 
-Cardiovascular diseases (CVDs) remain the leading cause of mortality worldwide. Early detection of coronary artery disease enables timely intervention, potentially saving lives. This project implements a production-grade machine learning system trained on the Cleveland Heart Disease dataset.
+Cardiovascular diseases (CVDs) remain the leading cause of global mortality. While gold-standard diagnosis requires invasive coronary angiography, early non-invasive triaging based on routine intake indicators (blood pressure, exercise ECG response, lipid panels, fluoroscopy) can alert clinicians to occult myocardial ischemia.
 
-The system combines statistical feature scaling (`StandardScaler`) with ensemble classification (`RandomForestClassifier`), validated against 5 machine learning algorithms using stratified 5-fold cross-validation. It provides a modular CLI, automated test suite, and interactive web dashboard with plain-language clinical risk breakdowns.
+CardioPredict translates statistical machine learning predictions into transparent, actionable clinical insights. Rather than functioning as a black-box model, it combines:
+1. **Calibrated Random Forest Classification** ($80.33\%$ accuracy, $0.8842$ ROC-AUC, Brier score $0.1325$).
+2. **Local and Global SHAP Attribution** to explain which factors drove a patient's risk up or down.
+3. **American Heart Association (AHA) Clinical Heuristics** for hypertension, cholesterol, and ischemic ST-depression flags.
+4. **Downloadable Clinical Assessment PDF Reports** generated dynamically via ReportLab.
 
 ---
 
 ## Key Features
 
-- **Multi-Algorithm Benchmarking:** Compares Logistic Regression, Decision Trees, Random Forest, K-Nearest Neighbors (KNN), and Support Vector Machines (SVM).
-- **Leak-Free Production Pipeline:** Preprocessing and feature scaling are encapsulated inside Scikit-Learn `Pipeline` objects to prevent data leakage during train/test splits and inference.
-- **Explainable Clinical Alerts:** Translates numerical indicators into actionable medical alerts (e.g., stage 2 hypertension flags, hypercholesterolemia warnings, ischemic ST depression).
-- **Interactive CLI & Web UI:** Includes both a guided terminal wizard (`predict.py`) and a modern glassmorphism web dashboard (`app.py`).
-- **Comprehensive Unit Tests:** Full test suite verifying dataset integrity, pipeline execution, edge-case input validation, and model persistence.
+- **Leak-Free Production Pipeline:** Preprocessing (`StandardScaler`) is fitted strictly within training folds using Scikit-Learn `Pipeline`.
+- **Target Polarity Standardization:** Rigorously verifies that `1` denotes positive cardiac risk and `0` denotes healthy baseline, matching cardiovascular physiological markers.
+- **Probability Calibration:** Integrates `CalibratedClassifierCV` (sigmoid scaling) to align predicted probabilities with empirical disease prevalence.
+- **Explainable AI (SHAP):** Computes exact Shapley values for individual predictions, decomposing the prediction into risk-elevating and protective factors with plain-English narratives.
+- **Clinical Heuristic Checks:** Evaluates American Heart Association (AHA) thresholds for Stage 2 hypertension ($\ge 140\text{ mm Hg}$), high cholesterol ($\ge 240\text{ mg/dl}$), and severe ST depression ($\ge 2.0\text{ mm}$).
+- **Printable PDF Reports:** One-click export of structured evaluation summaries.
+- **Comprehensive Test Suite:** 18 automated unit and integration tests covering data integrity, pipeline execution, SHAP explanations, API routes, and input validation.
 
 ---
 
-## Dataset & Clinical Indicators
-
-The dataset consists of 14 key clinical attributes (13 features + 1 binary target):
-
-| Feature | Name | Description | Reference / Plausible Range |
-| :--- | :--- | :--- | :--- |
-| `age` | Age | Patient age in years | 18 - 120 |
-| `sex` | Sex | Biological sex | `1` = Male, `0` = Female |
-| `cp` | Chest Pain Type | Clinical classification of chest discomfort | `0`: Typical Angina, `1`: Atypical Angina, `2`: Non-Anginal, `3`: Asymptomatic |
-| `trestbps` | Resting Blood Pressure | Resting blood pressure (hospital admission) | 80 - 250 mm Hg (Normal: < 120) |
-| `chol` | Serum Cholesterol | Total serum cholesterol | 100 - 600 mg/dl (Desirable: < 200) |
-| `fbs` | Fasting Blood Sugar | Fasting blood glucose level | `1` = > 120 mg/dl, `0` = <= 120 mg/dl |
-| `restecg` | Resting ECG | Resting electrocardiographic findings | `0`: Normal, `1`: ST-T wave abnormality, `2`: LV hypertrophy |
-| `thalach` | Max Heart Rate | Peak heart rate during exercise test | 60 - 230 bpm |
-| `exang` | Exercise Angina | Exercise-induced angina | `1` = Yes, `0` = No |
-| `oldpeak` | ST Depression | ST depression induced by exercise vs rest | 0.0 - 10.0 (Normal: < 1.0) |
-| `slope` | ST Slope | Slope of the peak exercise ST segment | `0`: Upsloping, `1`: Flat, `2`: Downsloping |
-| `ca` | Major Vessels | Major coronary vessels colored by fluoroscopy | 0 to 3 vessels |
-| `thal` | Thalassemia | Thalassemia blood defect diagnostic status | `1`: Normal, `2`: Fixed Defect, `3`: Reversible Defect |
-| **`target`** | **Diagnosis** | Cardiac outcome | `0`: Healthy / No Disease, `1`: Heart Disease Present |
-
----
-
-## Machine Learning Architecture
+## System Architecture
 
 ```
-Raw Patient Data / Cleveland Dataset
-             │
-             ▼
-   [ Data Preprocessing ] ──► Drop Duplicates & Validate Ranges
-             │
-             ▼
-   [ Stratified Splitting ] ─► 80% Train / 20% Test (Stratified K-Fold)
-             │
-             ▼
-   [ Feature Normalization ] ─► StandardScaler (Z-Score Normalization)
-             │
-             ▼
-   [ Model Selection ] ────► Multi-Model Evaluation (LR, DT, RF, KNN, SVM)
-             │
-             ▼
-   [ Production Pipeline ] ──► StandardScaler + RandomForestClassifier
-             │
-             ▼
-   [ Decision & Insights ] ──► Probability Score + Clinical Warning Breakdown
+Patient Clinical Inputs (13 Features)
+                │
+                ▼
+   [ Feature Range Validation ]  ──► Rejects invalid/out-of-bounds inputs
+                │
+                ▼
+   [ Scikit-Learn Pipeline ]
+     ├── StandardScaler           ──► Z-score normalization
+     └── RandomForestClassifier   ──► 150 Estimators, Max Depth 6
+                │
+                ▼
+   [ CalibratedClassifierCV ]    ──► Calibrated risk probability [0.0, 1.0]
+                │
+                ├───────────────────────────────────┐
+                ▼                                   ▼
+    [ SHAP TreeExplainer ]              [ AHA Clinical Heuristics ]
+    ├── Base Rate Attribution           ├── Hypertension Stage 2
+    ├── Positive Risk Drivers           ├── Hypercholesterolemia
+    ├── Protective Factors              └── Ischemic ST Depression
+    └── Plain-English Synthesis
+                │                                   │
+                └─────────────────┬─────────────────┘
+                                  ▼
+                [ Multi-Modal Presentation ]
+                ├── Glassmorphism Web Dashboard (FastAPI)
+                ├── OpenAPI REST Endpoints (/api/predict, /api/explain)
+                ├── Interactive Terminal Wizard (predict.py)
+                └── Downloadable PDF Clinical Report (ReportLab)
 ```
 
 ---
 
-## Model Performance Benchmark
+## Dataset & Deduplication Audit
 
-Models evaluated on the Cleveland test set (80/20 train-test split with Stratified 5-Fold Cross Validation):
+The system is trained on the benchmark **Cleveland Heart Disease Dataset** ([`minor/data/heart.csv`](minor/data/heart.csv)).
 
-| Algorithm | Test Accuracy | Precision | Recall | F1 Score | 5-Fold CV Mean |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Random Forest** (Selected) | **83.61%** | **0.7879** | **0.8966** | **0.8387** | **85.04%** |
-| **Logistic Regression** | 77.05% | 0.7027 | 0.8966 | 0.7879 | 83.79% |
-| **SVM** | 78.69% | 0.7500 | 0.8276 | 0.7869 | 85.04% |
-| **K-Nearest Neighbors** | 73.77% | 0.6970 | 0.7931 | 0.7419 | 82.98% |
-| **Decision Tree** | 73.77% | 0.7407 | 0.6897 | 0.7143 | 77.59% |
+### Deduplication Audit
+- **Raw File Records:** 1,025 rows.
+- **Duplicate Records Pruned:** 723 rows ($70.5\%$). The 1,025-row Kaggle distribution is an oversampled replication of the original 303 Cleveland patient cohort.
+- **Retained Unique Patients:** 302 patients ($138$ disease-positive, $164$ disease-negative; prevalence $45.7\%$).
+- **Stratified Partition:** $80\%$ training ($241$ samples, prevalence $45.6\%$), $20\%$ held-out test ($61$ samples, prevalence $45.9\%$).
 
-### Key Predictive Features (Feature Importance)
-1. **`cp` (Chest Pain Type)** — Strongest indicator of myocardial perfusion.
-2. **`thalach` (Maximum Heart Rate)** — Exercise capacity and cardiac output under stress.
-3. **`ca` (Major Fluoroscopy Vessels)** — Direct visualization of anatomical lumen narrowing.
-4. **`oldpeak` (ST Depression)** — Quantitative indicator of subendocardial ischemia.
-5. **`thal` (Thalassemia / Perfusion Defect)** — Reversible defect status.
+---
+
+## Clinical Feature Dictionary
+
+The 13 clinical indicators evaluated by the model:
+
+| Attribute | Name | Type | Medical Interpretation & Bounds | Normal / Reference Range |
+| :--- | :--- | :---: | :--- | :--- |
+| `age` | Age | Int | Patient biological age in years ($18 - 120$) | $18 - 120\text{ years}$ |
+| `sex` | Biological Sex | Cat | Biological sex at birth (`1`: Male, `0`: Female) | Binary |
+| `cp` | Chest Pain Type | Cat | `0`: Typical Angina, `1`: Atypical Angina<br>`2`: Non-Anginal, `3`: Asymptomatic | `0` strongly indicates ischemia |
+| `trestbps` | Resting BP | Int | Resting blood pressure on hospital intake ($80 - 250\text{ mm Hg}$) | $< 120\text{ mm Hg}$ (Normal) |
+| `chol` | Cholesterol | Int | Serum cholesterol ($100 - 600\text{ mg/dl}$) | $< 200\text{ mg/dl}$ (Desirable) |
+| `fbs` | Fasting Sugar | Cat | Fasting blood sugar $> 120\text{ mg/dl}$ (`1`: True, `0`: False) | `0`: Normal fasting glucose |
+| `restecg` | Resting ECG | Cat | `0`: Normal, `1`: ST-T wave abnormality<br>`2`: Left ventricular hypertrophy | `0`: Normal 12-lead ECG |
+| `thalach` | Max Heart Rate | Int | Peak heart rate recorded during stress test ($60 - 230\text{ bpm}$) | Age predicted: $220 - \text{age}$ |
+| `exang` | Exercise Angina | Cat | Anginal symptoms during exercise (`1`: Yes, `0`: No) | `0`: Absence of exertional pain |
+| `oldpeak` | ST Depression | Float | ST depression induced by exercise vs rest ($0.0 - 10.0\text{ mm}$) | $< 1.0\text{ mm}$ (Normal) |
+| `slope` | ST Slope | Cat | `0`: Upsloping, `1`: Flat, `2`: Downsloping | `0`: Benign; `2`: Marked ischemia |
+| `ca` | Major Vessels | Int | Number of major coronary vessels colored by fluoroscopy ($0 - 3$) | `0`: Clear epicardial vessels |
+| `thal` | Thalassemia | Cat | Perfusion defect: `1`: Normal, `2`: Fixed, `3`: Reversible | `1`: Normal myocardial perfusion |
+| **`target`** | **Diagnosis** | Binary | **`1`: Heart Disease Present**, **`0`: Healthy Baseline** | Ground truth angiographic status |
+
+---
+
+## Model Evaluation & Benchmarking
+
+All 5 candidate models were evaluated on the held-out test split ($61$ unique patient records) using Stratified 5-Fold Cross-Validation:
+
+| Model | Test Accuracy | Sensitivity (Recall) | Specificity | F1 Score | ROC-AUC | 5-Fold CV Mean | Brier Score |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Random Forest** *(Production)* | **80.33%** | **78.57%** | **81.82%** | **0.7857** | **0.8842** | **81.73% ± 0.025** | **0.1325** |
+| **SVM (RBF Kernel)** | 81.97% | 78.57% | 84.85% | 0.8000 | 0.8842 | 80.90% ± 0.021 | 0.1368 |
+| **K-Nearest Neighbors (KNN)** | 81.97% | 78.57% | 84.85% | 0.8000 | 0.8912 | 82.97% ± 0.041 | 0.1412 |
+| **Decision Tree** | 80.33% | 78.57% | 81.82% | 0.7857 | 0.8225 | 77.13% ± 0.058 | 0.1803 |
+| **Logistic Regression** | 78.69% | 75.00% | 81.82% | 0.7636 | 0.8907 | 83.38% ± 0.030 | 0.1385 |
+
+> **Audit Note on Historical CV Scores:** In earlier unstratified splits, Random Forest and SVM exhibited identical arithmetic mean scores ($85.04\%$) due to discrete sample count overlaps across 48-patient folds ($\sum \frac{n_i}{N}$). Their standard deviations differed ($0.038$ vs. $0.045$), proving this was a mathematical coincidence of discrete integer fractions rather than a copy-paste anomaly.
+
+Benchmark visual plots are automatically generated in [`minor/result/`](minor/result/):
+- [`model_comparison.png`](minor/result/model_comparison.png) — Side-by-side metric comparison bar chart.
+- [`roc_curves.png`](minor/result/roc_curves.png) — Multi-model Receiver Operating Characteristic curves.
+- [`pr_curves.png`](minor/result/pr_curves.png) — Precision-Recall curves.
+- [`calibration_curve.png`](minor/result/calibration_curve.png) — Reliability diagrams.
+
+---
+
+## Probability Calibration
+
+A raw classification score is not an absolute clinical risk. Standard tree ensembles tend to produce probabilities pushed away from 0 and 1 or bunched in specific regions.
+
+CardioPredict applies **Sigmoid Probability Calibration** (`CalibratedClassifierCV` with 5-fold internal splits):
+- **Uncalibrated RF Brier Score:** $0.1404$
+- **Calibrated RF Brier Score:** $0.1325$ (Lower Brier score indicates superior calibration alignment)
+
+---
+
+## Explainable AI (SHAP) Methodology
+
+CardioPredict integrates **TreeSHAP** to decompose model predictions according to Cooperative Game Theory:
+
+$$\phi_i(x) = \sum_{S \subseteq F \setminus \{i\}} \frac{|S|!(|F| - |S| - 1)!}{|F|!} \left[ f_x(S \cup \{i\}) - f_x(S) \right]$$
+
+### Global Feature Importance
+The overall strongest drivers of cardiac risk across the Cleveland cohort:
+1. **`ca` (Major Fluoroscopy Vessels):** Direct anatomical visualization of arterial occlusion.
+2. **`cp` (Chest Pain Type):** Anginal pain characteristics.
+3. **`oldpeak` (ST Depression):** Ischemic response under stress.
+4. **`thal` (Thalassemia / Perfusion Defect):** Reversible myocardial ischemia.
+5. **`thalach` (Maximum Heart Rate):** Impaired cardiac reserve.
+
+A global Beeswarm plot is generated at [`minor/result/shap_summary.png`](minor/result/shap_summary.png).
 
 ---
 
@@ -123,34 +184,42 @@ Models evaluated on the Cleveland test set (80/20 train-test split with Stratifi
 
 ```
 Heart-Disease-Prediction/
-├── app.py                     # FastAPI web application with interactive medical UI
-├── predict.py                 # CLI inference tool (interactive, demo, and flag modes)
-├── train.py                   # Automated model training and benchmarking pipeline
-├── requirements.txt           # Python dependency specifications
-├── .gitignore                 # Standard Python gitignore rules
-├── README.md                  # Comprehensive project documentation
+├── app.py                     # FastAPI REST API & Glassmorphism Web Dashboard
+├── predict.py                 # CLI Tool (interactive wizard, demo, flag mode)
+├── train.py                   # Automated retraining, benchmarking & XAI pipeline
+├── requirements.txt           # Pinned production dependency configuration
+├── run_app.bat                # Windows 1-click web launcher
+├── run_demo.bat               # Windows 1-click CLI demo runner
+├── README.md                  # Comprehensive portfolio documentation
 │
-├── src/                       # Modular production source code
-│   ├── __init__.py            # Package initializer
-│   ├── model.py               # Pipeline definition, benchmarking, model persistence
-│   ├── predict.py             # Inference handler, input validator, probability scoring
-│   └── utils.py               # Feature metadata, path finders, clinical risk heuristics
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # GitHub Actions CI automated testing pipeline
 │
-├── tests/                     # Automated testing suite
+├── src/                       # Production Python Modules
 │   ├── __init__.py
-│   └── test_model.py          # Unit tests for dataset, pipeline, inference & edge-cases
+│   ├── config.py              # Centralized paths, metadata & clinical constraints
+│   ├── dataset.py             # Data loading, deduplication & stratified splitting
+│   ├── model.py               # Candidate model training, calibration & benchmarking
+│   ├── explain.py             # SHAP TreeExplainer & clinical narrative synthesis
+│   ├── predict.py             # Inference service, input validation & AHA heuristics
+│   ├── report.py              # ReportLab multi-page clinical PDF report generator
+│   └── utils.py               # Clinical heuristics & terminal styling helpers
 │
-└── minor/                     # Original project artifacts & reports
-    ├── data/
-    │   └── heart.csv          # Cleveland dataset
-    ├── model/
-    │   └── heart_disease_pipeline.pkl  # Trained production pipeline
-    ├── notebook/
-    │   ├── Heart_Disease_Prediction_minorProject.ipynb
-    │   └── Heart_Disease_Project_Report_Final.pdf
-    └── result/
-        ├── classification_report.txt
-        └── model_comparison.csv
+├── tests/                     # Automated Test Suite (18 tests passing)
+│   ├── __init__.py
+│   ├── test_dataset.py        # Tests loading, deduplication, target verification
+│   ├── test_model.py          # Tests pipeline serialization, probability bounds
+│   ├── test_explain.py        # Tests SHAP attribution & narrative generation
+│   ├── test_api.py            # Tests FastAPI routes, health, predict, 422 errors
+│   └── test_report.py         # Tests PDF report binary generation
+│
+└── minor/
+    ├── data/heart.csv         # Cleveland dataset
+    ├── model/                 # Serialized production & calibrated pipelines (.pkl)
+    ├── notebook/              # Exploratory data analysis notebooks
+    ├── reports/               # Output directory for exported assessment reports
+    └── result/                # Benchmark JSON/CSV records & visualization PNGs
 ```
 
 ---
@@ -167,12 +236,14 @@ git clone https://github.com/Rudraxtyagii/Heart-Disease-Prediction.git
 cd Heart-Disease-Prediction
 ```
 
-### 2. Set Up Virtual Environment (Recommended)
+### 2. Set Up Virtual Environment
 ```bash
+# Windows
 python -m venv .venv
-# Windows:
 .venv\Scripts\activate
-# Linux / macOS:
+
+# macOS / Linux
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
@@ -185,68 +256,125 @@ pip install -r requirements.txt
 
 ## Usage Guide
 
-### 1. Interactive CLI Wizard
-Launch the guided questionnaire in your terminal:
+### 1. Web Dashboard
+Start the local healthcare analytics interface:
+```bash
+python app.py
+```
+Open **[http://127.0.0.1:8050](http://127.0.0.1:8050)** in your browser.  
+Interactive OpenAPI documentation is live at **[http://127.0.0.1:8050/docs](http://127.0.0.1:8050/docs)**.
+
+### 2. Interactive CLI Wizard
+Guided questionnaire with automatic validation:
 ```bash
 python predict.py --interactive
 ```
 
-### 2. Command-Line Inference
-Pass patient indicators directly using flags:
-```bash
-python predict.py \
-  --age 58 --sex 1 --cp 0 --trestbps 140 --chol 260 --fbs 0 \
-  --restecg 1 --thalach 125 --exang 1 --oldpeak 2.4 --slope 1 --ca 2 --thal 3
-```
-
-Run demo mode to test sample clinical profiles:
+### 3. CLI Demonstration Mode
+Evaluate sample contrasting clinical profiles (High-Risk, Borderline, Healthy):
 ```bash
 python predict.py --demo
 ```
 
-### 3. Web Dashboard (FastAPI)
-Start the modern local web interface:
-```bash
-python app.py
-```
-Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your web browser.  
-Interactive OpenAPI documentation is available at **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**.
-
-### 4. Model Retraining Pipeline
-To retrain candidate algorithms, recalculate benchmarks, and re-serialize the pipeline:
+### 4. Model Retraining
+To re-evaluate models, re-fit probability calibration, and update benchmark plots:
 ```bash
 python train.py
 ```
 
-### 5. Automated Unit Tests
-Run the test suite using Python's built-in `unittest` runner:
+### 5. Automated Test Suite
+Run the 18 automated unit and integration tests:
 ```bash
 python -m unittest discover tests
 ```
 
 ---
 
-## Clinical Risk Heuristics
+## REST API Reference & Examples
 
-In addition to machine learning classification, the inference engine evaluates American Heart Association (AHA) clinical threshold guidelines:
+### Health Check
+```http
+GET /health
+```
+```json
+{
+  "status": "healthy",
+  "service": "Heart Disease Prediction System",
+  "model_version": "2.1.0",
+  "pipeline_loaded": true,
+  "calibration_active": true
+}
+```
 
-- **Hypertension Stage 2:** Flagged when `trestbps >= 140 mm Hg`.
-- **Hypercholesterolemia:** Flagged when `chol >= 240 mg/dl`.
-- **Myocardial Ischemia Alert:** Flagged when `exang == 1` (exercise-induced angina present).
-- **Severe ST Depression:** Flagged when `oldpeak >= 2.0` (electrocardiographic ischemia).
-- **Vascular Involvement:** Flagged when fluoroscopy reveals `>= 1` colored vessel (`ca > 0`).
+### Explainable Risk Prediction
+```http
+POST /api/explain
+Content-Type: application/json
+```
+```json
+{
+  "age": 62, "sex": 1, "cp": 0, "trestbps": 160, "chol": 290, "fbs": 1,
+  "restecg": 2, "thalach": 115, "exang": 1, "oldpeak": 2.8, "slope": 1,
+  "ca": 2, "thal": 3
+}
+```
+
+**Response:**
+```json
+{
+  "prediction": 1,
+  "label": "Elevated Risk (Heart Disease Indicated)",
+  "calibrated_probability": 0.9600,
+  "confidence_percentage": 96.0,
+  "risk_level": "High Risk",
+  "risk_badge": "HIGH CARDIAC RISK",
+  "explanation": {
+    "base_value": 0.4597,
+    "top_risk_drivers": [
+      {
+        "feature": "ca",
+        "label": "Major Vessels Colored (Fluoroscopy)",
+        "patient_value": 2,
+        "shap_value": 0.0868,
+        "impact": "Elevates Risk"
+      },
+      {
+        "feature": "oldpeak",
+        "label": "ST Depression (oldpeak)",
+        "patient_value": 2.8,
+        "shap_value": 0.0840,
+        "impact": "Elevates Risk"
+      }
+    ],
+    "clinical_narrative": "The primary factors elevating cardiac risk above cohort baseline are: Major Vessels Colored (Fluoroscopy) (2 vessels), ST Depression (2.8 mm)..."
+  }
+}
+```
 
 ---
 
-## Contributing
+## PDF Assessment Report Generation
 
-Contributions, feedback, and pull requests are welcome!
+To download a formal clinical summary PDF for any patient via API:
+```bash
+curl -X POST "http://127.0.0.1:8050/api/report/pdf" \
+     -H "Content-Type: application/json" \
+     -d '{"age":62,"sex":1,"cp":0,"trestbps":160,"chol":290,"fbs":1,"restecg":2,"thalach":115,"exang":1,"oldpeak":2.8,"slope":1,"ca":2,"thal":3}' \
+     --output cardiac_report.pdf
+```
+The report includes patient indicators, calibrated risk score, AHA warning alerts, SHAP attributions, timestamp, and mandatory medical disclaimers.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/cardiac-enhancement`)
-3. Commit your changes (`git commit -m 'Add cardiac risk feature'`)
-4. Push to the branch (`git push origin feature/cardiac-enhancement`)
-5. Open a Pull Request
+---
+
+## Limitations & Ethical Medical Disclaimer
+
+> [!WARNING]
+> **ACADEMIC DECISION-SUPPORT PROTOTYPE ONLY**
+> 
+> 1. **Not a Diagnostic Device:** This application is strictly an educational machine learning demonstration prototype. It has **NOT** been evaluated, certified, or cleared by the US FDA, European CE-IVD, or any healthcare regulatory body.
+> 2. **Population Bias:** The model was trained exclusively on the Cleveland cohort ($N = 302$). Model generalizability to diverse demographic groups, pediatric cohorts, or modern ambulatory populations may be limited.
+> 3. **Observational Association:** SHAP values represent statistical attribution within the trained algorithm, **not** definitive biological proof of individual medical etiology.
+> 4. **Mandatory Clinical Oversight:** All diagnostic and treatment decisions must be made by a licensed healthcare professional based on comprehensive clinical history, physical examination, and diagnostic testing.
 
 ---
 

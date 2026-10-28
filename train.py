@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-CLI Script to train, benchmark, and persist the Heart Disease Prediction pipeline.
+Production Training, Calibration, Benchmarking, and Explainable AI Pipeline.
 Usage:
     python train.py
 """
 
 import sys
+import logging
 from pathlib import Path
 
 # Add project root to path
@@ -13,49 +14,62 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.model import HeartDiseaseModelPipeline
+from src.model import HeartDiseaseModelTrainer
+from src.explain import HeartDiseaseExplainer
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
 def main():
-    print("=" * 65)
-    print("  HEART DISEASE PREDICTION - MODEL TRAINING PIPELINE")
-    print("=" * 65)
+    print("=" * 72)
+    print("  CARDIOPREDICT - MODEL TRAINING, BENCHMARKING & XAI PIPELINE")
+    print("=" * 72)
 
-    trainer = HeartDiseaseModelPipeline()
-    print("\n[1/3] Loading and preprocessing dataset from:", trainer.data_path)
+    trainer = HeartDiseaseModelTrainer()
     
-    print("[2/3] Benchmarking classification algorithms (Stratified 5-Fold CV)...")
-    summary = trainer.train_final_pipeline()
+    print("\n[1/4] Loading dataset, dropping duplicates & verifying target labels...")
+    print("[2/4] Executing Stratified 5-Fold CV Across 5 Candidate Classifiers...")
+    summary = trainer.train_and_benchmark()
 
-    print("\n" + "-" * 65)
-    print("MODEL COMPARISON BENCHMARK:")
-    print("-" * 65)
-    bench_df = summary["benchmarks"]
-    print(bench_df.to_string(index=False))
+    print("\n" + "=" * 72)
+    print("  CLINICAL BENCHMARK EVALUATION (HELD-OUT TEST SET)")
+    print("=" * 72)
+    print(f"{'Model':<28} | {'Acc':<6} | {'Recall':<6} | {'Spec':<6} | {'F1':<6} | {'AUC':<6} | {'CV Mean':<7}")
+    print("-" * 72)
+    for b in summary["benchmarks"]:
+        print(
+            f"{b['model_name']:<28} | "
+            f"{b['accuracy']:.4f} | "
+            f"{b['sensitivity_recall']:.4f} | "
+            f"{b['specificity']:.4f} | "
+            f"{b['f1_score']:.4f} | "
+            f"{b['roc_auc']:.4f} | "
+            f"{b['cv_5fold_mean']:.4f} +- {b['cv_5fold_std']:.3f}"
+        )
 
-    print("\n" + "-" * 65)
-    print("PRODUCTION PIPELINE EVALUATION (Random Forest with Scaling):")
-    print("-" * 65)
-    metrics = summary["metrics"]
-    print(f"Accuracy  : {metrics['accuracy']:.4f} ({metrics['accuracy'] * 100:.2f}%)")
-    print(f"Precision : {metrics['precision']:.4f}")
-    print(f"Recall    : {metrics['recall']:.4f}")
-    print(f"F1 Score  : {metrics['f1']:.4f}")
+    print("-" * 72)
+    print(f"Probability Calibration (Random Forest Brier Score): {summary['calibrated_rf_brier_score']:.4f}")
 
-    print("\nCLASSIFICATION REPORT:")
-    print(summary["classification_report"])
-
-    print("-" * 65)
-    print("TOP PREDICTIVE CARDIAC FEATURES:")
-    print("-" * 65)
-    for feat, imp in list(summary["feature_importances"].items())[:6]:
-        bar = "#" * int(imp * 40)
+    print("\n" + "=" * 72)
+    print("  TOP PREDICTIVE CARDIAC RISK FEATURES")
+    print("=" * 72)
+    for feat, imp in list(summary["feature_importances"].items())[:7]:
+        bar = "#" * int(imp * 45)
         print(f"  {feat:<12} : {imp:.4f} | {bar}")
 
-    print("\n[3/3] Saving production artifacts...")
-    saved_model_path = trainer.save_artifacts()
-    print(f"[SUCCESS] Trained model pipeline serialized to: {saved_model_path}")
-    print("=" * 65)
+    print("\n[3/4] Generating Global SHAP Explainable AI Summary Plot...")
+    explainer = HeartDiseaseExplainer(trainer.production_pipeline)
+    xai_res = explainer.generate_global_explanations()
+    print(f"  [SUCCESS] SHAP Summary Plot generated: {xai_res['plot_saved_path']}")
+
+    print("\n[4/4] Serializing production model artifacts and benchmark records...")
+    paths = trainer.save_artifacts()
+    print(f"  [SUCCESS] Production Pipeline : {paths['pipeline']}")
+    print(f"  [SUCCESS] Calibrated Pipeline : {paths['calibrated']}")
+    print(f"  [SUCCESS] Evaluation Summary  : {paths['metrics']}")
+    print("=" * 72)
+    print("ALL TRAINING & BENCHMARKING PHASES COMPLETED SUCCESSFULLY.")
+    print("=" * 72 + "\n")
 
 
 if __name__ == "__main__":
